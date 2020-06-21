@@ -5,6 +5,8 @@
 
 //Variables/buffers
 
+size_t detour_count = 0;
+struct detour_list detour_restore[DETOUR_MAX_COUNT];
 const byte_t DETOUR_JMP[]        = ASM_GENERATE(_DETOUR_JMP);
 const byte_t DETOUR_JMP_RAX[]    = ASM_GENERATE(_DETOUR_JMP_RAX);
 const byte_t DETOUR_JMP_EAX[]    = ASM_GENERATE(_DETOUR_JMP_EAX);
@@ -23,6 +25,21 @@ const byte_t DETOUR_DWORD[]      = ASM_GENERATE(_DETOUR_DWORD);
 const byte_t DETOUR_QWORD[]      = ASM_GENERATE(_DETOUR_QWORD);
 
 //Functions
+
+int DetourRestore(addr_t src)
+{
+    for(size_t i = 0; i < DETOUR_MAX_COUNT; i++)
+    {
+        if(detour_restore[i].address == src)
+        {
+            memcpy(src, detour_restore[i].buffer, sizeof(detour_restore[i].buffer));
+            return 0;
+            break;
+        }
+    }
+
+    return BAD_RETURN;
+}
 
 int DetourLength(int method)
 {
@@ -70,7 +87,10 @@ addr_t DetourAllocate(size_t size, int protection)
 int Detour(addr_t src, addr_t dst, size_t size, int method)
 {
     int detour_size = DetourLength(method);
-    if(detour_size == BAD_RETURN || size < detour_size || DetourProtect(src, size, DETOUR_PROT_EXEC_READWRITE) != 0) return BAD_RETURN;
+    if(detour_size == BAD_RETURN || size < detour_size || size > DETOUR_MAX_SIZE || detour_count == DETOUR_MAX_COUNT -1 || DetourProtect(src, size, DETOUR_PROT_EXEC_READWRITE) != 0) return BAD_RETURN;
+
+    detour_restore[detour_count].address = src;
+    memcpy(detour_restore[detour_count].buffer, src, sizeof(detour_restore[detour_count].buffer));
 
     switch(method)
     {
@@ -174,6 +194,8 @@ int Detour(addr_t src, addr_t dst, size_t size, int method)
 #       endif
     }
 
+    detour_count++;
+
     return 0;
 }
 
@@ -184,10 +206,10 @@ addr_t DetourTrampoline(addr_t src, addr_t dst, size_t size, int method)
 
 #   if defined(DETOUR_86)
     byte_t gateway_buffer[] = ASM_GENERATE(_DETOUR_MOV_EAX, _DETOUR_DWORD, _DETOUR_JMP_EAX);
-    *(dword_t*)((mem_t)gateway_buffer + sizeof(DETOUR_MOV_EAX)) = src + size;
+    *(dword_t*)((mem_t)gateway_buffer + sizeof(DETOUR_MOV_EAX)) = (dword_t)((mem_t)src + size);
 #   elif defined(DETOUR_64)
     byte_t gateway_buffer[] = ASM_GENERATE(_DETOUR_MOVABS_RAX, _DETOUR_QWORD, _DETOUR_JMP_RAX);
-    *(qword_t*)((mem_t)gateway_buffer + sizeof(DETOUR_MOVABS_RAX)) = src + size;
+    *(qword_t*)((mem_t)gateway_buffer + sizeof(DETOUR_MOVABS_RAX)) = (qword_t)((mem_t)src + size);
 #   endif
 
     size_t gateway_size = size + sizeof(gateway_buffer);

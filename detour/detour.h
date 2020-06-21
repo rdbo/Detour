@@ -1,3 +1,9 @@
+
+#ifndef linux
+#define linux
+#endif
+
+
 //Made by rdbo
 //https://github.com/rdbo/Detour
 
@@ -23,7 +29,8 @@
 
 //Limits
 
-#define DETOUR_MAX 256
+#define DETOUR_MAX_COUNT 256
+#define DETOUR_MAX_SIZE  64
 
 //Protection
 
@@ -158,6 +165,13 @@ typedef qword_t mem_t;
 
 //## Detour
 
+struct detour_list
+{
+    addr_t address;
+    byte_t buffer[DETOUR_MAX_SIZE];
+};
+
+int DetourRestore(addr_t src);
 int DetourLength(int method);
 int DetourProtect(addr_t src, size_t size, int protection);
 int Detour(addr_t src, addr_t dst, size_t size, int method);
