@@ -1,9 +1,3 @@
-
-#ifndef linux
-#define linux
-#endif
-
-
 //Made by rdbo
 //https://github.com/rdbo/Detour
 
